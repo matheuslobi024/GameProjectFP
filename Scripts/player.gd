@@ -1,8 +1,8 @@
 extends CharacterBody3D
 
-@export var speed := 5.0
+@export var speed := 7.5
 @export var jump_velocity := 4.5
-@export var mouse_sensitivity := 0.002
+@export var mouse_sensitivity := 0.005
 
 var camera
 var y_rotation := 0.0
@@ -26,6 +26,11 @@ func _physics_process(delta):
 	var direction := (transform.basis * input_dir).normalized()
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
+
+	if Input.is_action_just_pressed("run"):
+		speed = 10.0;
+	elif Input.is_action_just_released("run"):
+		speed = 7.5;
 
 	if not is_on_floor():
 		velocity.y -= 9.8 * delta
