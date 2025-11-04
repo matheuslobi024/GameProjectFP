@@ -1,8 +1,8 @@
 shader_type spatial;
 render_mode unshaded, fog_disabled;
 
-uniform float lineHighlight = 0.2;
-uniform float lineShadow = 0.55;
+uniform float lineHighlight = 0.1;
+uniform float lineShadow = 0.8;
 
 uniform sampler2D screen_texture: hint_screen_texture, filter_nearest;
 uniform sampler2D depth_texture: hint_depth_texture, filter_linear_mipmap;
@@ -44,8 +44,8 @@ void fragment() {
 	
 	float depthDifference = 0.0;
 	float depth = get_linear_depth(SCREEN_UV, depth_texture, INV_PROJECTION_MATRIX);
-	float invDepthDifference = 0.5;
-float normalDifference = 0.0;
+	float invDepthDifference = 0.8;
+	float normalDifference = 0.0;
 	vec3 normalEdgeBias = (vec3(1.0, 1.0, 1.0));
 	vec3 normal = get_normal(SCREEN_UV, normal_texture);
 	for (int i = 0; i < UVOffsets.length(); i++){
@@ -63,7 +63,7 @@ float normalDifference = 0.0;
 	normalDifference = clamp(normalDifference - invDepthDifference, 0.0, 1.0);
 	
 	float innerLines = clamp(normalDifference - depthDifference, 0.0, 1.0);
-	float finalEdge = clamp(normalDifference + invDepthDifference, 0.0, 1.0);
+	float finalEdge = clamp(invDepthDifference, 0.0, 1.0);
 	
 	innerLines = clamp(normalDifference - depthDifference, 0.0, 1.0) * (1.0 - invDepthDifference);
 	
@@ -71,4 +71,5 @@ float normalDifference = 0.0;
 	
 	ALBEDO += innerLines * lineHighlight;
 	ALBEDO -= ALBEDO * invDepthDifference * lineShadow;
+	//ALBEDO = vec3(innerLines, 0.0, 0.0);
 }

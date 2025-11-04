@@ -1,40 +1,73 @@
 extends CharacterBody3D
 
-@export var speed := 7.5
-@export var jump_velocity := 4.5
-@export var mouse_sensitivity := 0.005
+@export var MOVE_SPEED: float = 50.0
+@export var JUMP_SPEED: float = 2.0
+@export var first_person: bool = true : 
+	set(p_value):
+		first_person = p_value
+		if first_person:
+			var tween: Tween = create_tween()
+			tween.tween_property($CameraManager/Arm, "spring_length", 0.0, .33)
+			tween.tween_callback($Body.set_visible.bind(false))
+		else:
+			$Body.visible = true
+			create_tween().tween_property($CameraManager/Arm, "spring_length", 6.0, .33)
 
-var camera
-var y_rotation := 0.0
+@export var gravity_enabled: bool = true :
+	set(p_value):
+		gravity_enabled = p_value
+		if not gravity_enabled:
+			velocity.y = 0
+			
+@export var collision_enabled: bool = true :
+	set(p_value):
+		collision_enabled = p_value
+		$CollisionShapeBody.disabled = ! collision_enabled
+		$CollisionShapeRay.disabled = ! collision_enabled
 
-func _ready():
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-	camera = $Node3D/Camera3D
 
-func _unhandled_input(event):
-	if event is InputEventMouseMotion:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		y_rotation = clamp(y_rotation - event.relative.y * mouse_sensitivity, deg_to_rad(-90), deg_to_rad(90))
-		camera.rotation.x = y_rotation
-
-func _physics_process(delta):
-	var input_dir := Vector3.ZERO
-	input_dir.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
-	input_dir.z = Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
-	input_dir = input_dir.normalized()
-
-	var direction := (transform.basis * input_dir).normalized()
-	velocity.x = direction.x * speed
-	velocity.z = direction.z * speed
-
-	if Input.is_action_just_pressed("run"):
-		speed = 10.0;
-	elif Input.is_action_just_released("run"):
-		speed = 7.5;
-
-	if not is_on_floor():
-		velocity.y -= 9.8 * delta
-	elif Input.is_action_just_pressed("jump"):
-		velocity.y = jump_velocity
-
+func _physics_process(p_delta) -> void:
+	var direction: Vector3 = get_camera_relative_input()
+	var h_veloc: Vector2 = Vector2(direction.x, direction.z).normalized() * MOVE_SPEED
+	if Input.is_key_pressed(KEY_SHIFT):
+		h_veloc *= 2
+	velocity.x = h_veloc.x
+	velocity.z = h_veloc.y
+	if gravity_enabled:
+		velocity.y -= 40 * p_delta
 	move_and_slide()
+
+
+# Returns the input vector relative to the camera. Forward is always the direction the camera is facing
+func get_camera_relative_input() -> Vector3:
+	var input_dir: Vector3 = Vector3.ZERO
+	if Input.is_key_pressed(KEY_A): # Left
+		input_dir -= %Camera3D.global_transform.basis.x
+	if Input.is_key_pressed(KEY_D): # Right
+		input_dir += %Camera3D.global_transform.basis.x
+	if Input.is_key_pressed(KEY_W): # Forward
+		input_dir -= %Camera3D.global_transform.basis.z
+	if Input.is_key_pressed(KEY_S): # Backward
+		input_dir += %Camera3D.global_transform.basis.z
+	if Input.is_key_pressed(KEY_E) or Input.is_key_pressed(KEY_SPACE): # Up
+		velocity.y += JUMP_SPEED + MOVE_SPEED*.016
+	if Input.is_key_pressed(KEY_Q): # Down
+		velocity.y -= JUMP_SPEED + MOVE_SPEED*.016
+	if Input.is_key_pressed(KEY_KP_ADD) or Input.is_key_pressed(KEY_EQUAL):
+		MOVE_SPEED = clamp(MOVE_SPEED + .5, 5, 9999)
+	if Input.is_key_pressed(KEY_KP_SUBTRACT) or Input.is_key_pressed(KEY_MINUS):
+		MOVE_SPEED = clamp(MOVE_SPEED - .5, 5, 9999)
+	return input_dir
+
+
+func _input(p_event: InputEvent) -> void:
+	if p_event is InputEventMouseButton and p_event.pressed:
+		if p_event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			MOVE_SPEED = clamp(MOVE_SPEED + 5, 5, 9999)
+		elif p_event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			MOVE_SPEED = clamp(MOVE_SPEED - 5, 5, 9999)
+	
+
+		# Else if up/down released
+		elif p_event.keycode in [ KEY_Q, KEY_E, KEY_SPACE ]:
+			velocity.y = 0
